@@ -3710,12 +3710,7 @@ def range_delete_cb(st: ProjectState, beat_filter: str, from_beat: Optional[int]
 
 def _ai_rewrite_prompt(current_prompt: str, instruction: str,
                        character_context: str = "", beat_context: str = "") -> str:
-    """Use Claude to rewrite an image prompt based on a natural language instruction.
-    character_context: character DNA/appearance reference block.
-    beat_context: the original beat/story text for this panel."""
-    import anthropic
-    client = anthropic.Anthropic()
-
+    """Rewrite an image prompt using the active reasoning provider."""
     char_section = ""
     if character_context:
         char_section = f"\n\nCHARACTER APPEARANCE REFERENCE (use this to correctly describe characters):\n{character_context}"
@@ -3724,6 +3719,28 @@ def _ai_rewrite_prompt(current_prompt: str, instruction: str,
     if beat_context:
         beat_section = f"\n\nORIGINAL BEAT / STORY CONTEXT:\n{beat_context}"
 
+    if _rp.is_deepseek_mode():
+        system = "You are an expert AI image prompt editor for a manhwa image generator. Return only the rewritten prompt."
+        user = f"""CHARACTER APPEARANCE REFERENCE:
+{character_context or "(none)"}
+
+ORIGINAL BEAT / STORY CONTEXT:
+{beat_context or "(none)"}
+
+CURRENT IMAGE PROMPT:
+{current_prompt}
+
+USER'S EDIT INSTRUCTION:
+{instruction}
+
+Rewrite the prompt to implement the instruction exactly while preserving unrelated visual details."""
+        text, status = _rp.call_text(system, user, max_tokens=700, temperature=0)
+        if not text:
+            raise RuntimeError(status)
+        return text.strip()
+
+    import anthropic
+    client = anthropic.Anthropic()
     msg = client.messages.create(
         model=CLAUDE_MODEL,
         max_tokens=700,
