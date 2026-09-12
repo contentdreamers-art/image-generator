@@ -80,6 +80,7 @@ def _ppp(st) -> int:
     return SHORTS_PANELS_PER_PAGE if getattr(st, 'build_mode', 'Panel') == 'Shorts' else PANELS_PER_PAGE
 
 import cloud_storage as _cloud
+import reasoning_provider as _rp
 
 import threading
 _BATCH_PAUSE_EVENT = threading.Event()
@@ -482,7 +483,7 @@ def enhance_tab2_prompt_with_openai(base_prompt: str, context: Dict[str, Any]) -
     }
     improved = _call_openai_text(TAB2_PROMPT_ENHANCER_SYSTEM, payload, model=OPENAI_PROMPT_MODEL, max_output_tokens=900)
     if improved:
-        return clean_for_prompt(improved), f"OpenAI {OPENAI_PROMPT_MODEL}"
+        return clean_for_prompt(improved), _rp.active_model_label(f"OpenAI {OPENAI_PROMPT_MODEL}")
     return clean_for_prompt(base_prompt), "local prompt assembly"
 
 
@@ -1058,7 +1059,7 @@ def _extract_json_object(text: str) -> Optional[Dict[str, Any]]:
 
 def _call_claude_beat_plan(st: ProjectState, beat_text: str, beat_index: int) -> Optional[Dict[str, Any]]:
     api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
-    if not api_key:
+    if not _rp.has_text_provider("anthropic"):
         return None
     try:
         import requests
@@ -1143,6 +1144,10 @@ def _call_claude_beat_plan(st: ProjectState, beat_text: str, beat_index: int) ->
             "Location continuity: keep current location UNLESS beat clearly moves elsewhere or environment_shift applies.",
         ],
     }
+    if _rp.is_deepseek_mode():
+        result, _status = _rp.call_json(system, user, max_tokens=500, temperature=0)
+        return result if isinstance(result, dict) else None
+
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -1173,7 +1178,7 @@ def _call_claude_beat_plan(st: ProjectState, beat_text: str, beat_index: int) ->
 
 def _call_claude_on_image_text(text_type: str, beat_text: str, action_line: str) -> Optional[str]:
     api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
-    if not api_key:
+    if not _rp.has_text_provider("anthropic"):
         return None
     try:
         import requests
@@ -1198,6 +1203,13 @@ def _call_claude_on_image_text(text_type: str, beat_text: str, action_line: str)
             "If SFX: stylized sound effect (e.g., 'BAM!', 'THUD!').",
         ],
     }
+    if _rp.is_deepseek_mode():
+        out, _status = _rp.call_text(system, user, max_tokens=80, temperature=0.4)
+        out = clean_for_prompt(out or "")
+        if len(out.split()) > 12:
+            out = " ".join(out.split()[:12])
+        return out.strip() or None
+
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -2810,7 +2822,7 @@ def generate_cb(
     preview_prompt = clean_for_prompt(editable_prompt or base_prompt)
     existing_final_prompt = clean_for_prompt(final_prompt_text or "")
     if use_openai_final_prompt:
-        prompt_source = "OpenAI final prompt"
+        prompt_source = _rp.active_model_label("OpenAI final prompt")
         prompt, openai_status = _build_openai_final_prompt(
             st,
             beat_text,
