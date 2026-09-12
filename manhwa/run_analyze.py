@@ -5,6 +5,7 @@ Safe to run alongside the app (no lock contention during API phase).
 import sys, os, io, base64, json, threading
 sys.path.insert(0, os.path.dirname(__file__))
 import character_library as cl
+import reasoning_provider as _rp
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from PIL import Image as _PILImage
 import anthropic
@@ -12,7 +13,7 @@ import anthropic
 MAX_WORKERS = 10
 MAX_EDGE    = 768
 JPEG_Q      = 75
-MODEL       = cl._DEFAULT_ANALYSIS_MODEL
+MODEL       = _rp.DEEPSEEK_MODEL if _rp.is_deepseek_mode() else cl._DEFAULT_ANALYSIS_MODEL
 
 def _encode_image(path: str) -> str:
     img = _PILImage.open(path).convert("RGB")
@@ -47,8 +48,11 @@ def _analyze_one(t: dict) -> tuple:
     if not img_path or not os.path.exists(img_path):
         return tid, {"error": "no local image"}
     try:
-        b64 = _encode_image(img_path)
-        analysis = _call_api(b64)
+        if _rp.is_deepseek_mode():
+            analysis = cl.analyze_image_with_ai(_PILImage.open(img_path))
+        else:
+            b64 = _encode_image(img_path)
+            analysis = _call_api(b64)
         return tid, analysis
     except Exception as e:
         return tid, {"error": str(e)[:120]}
