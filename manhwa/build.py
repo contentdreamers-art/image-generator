@@ -2948,7 +2948,7 @@ def _compose_sonnet_prompt_fallback(st: ProjectState, beat_text: str, plan: Dict
 
 def _call_claude_batch_image_prompts(st: ProjectState, start_index: int, beats_batch: List[str]) -> Dict[int, Dict[str, Any]]:
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
-    if not api_key:
+    if not _rp.has_text_provider("anthropic"):
         return {}
     plans_payload = []
     for rel_i, beat_text in enumerate(beats_batch):
