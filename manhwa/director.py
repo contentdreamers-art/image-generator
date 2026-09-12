@@ -4285,7 +4285,7 @@ def zip_cb(st: ProjectState, zip_base_name: str = "untitled", zip_part: str = "A
                     if rel_root.split(os.sep)[0] in ("images", "thumbnails"):
                         continue
                     for fn in files:
-                        if fn.upper() == "NUMBERED_PROMPTS.MD":
+                        if fn.upper() in {"NUMBERED_PROMPTS.MD", "NUMBERED_PROMPTS.TXT"}:
                             continue
                         full = os.path.join(root, fn)
                         rel = os.path.relpath(full, st.project_dir)
@@ -4307,7 +4307,9 @@ def zip_cb(st: ProjectState, zip_base_name: str = "untitled", zip_part: str = "A
                 _write_beat_maps(zfile, "combined", rows_combined)
                 numbered_prompts = _numbered_prompts_md(image_entries, combined_names)
                 zfile.writestr("NUMBERED_PROMPTS.md", numbered_prompts)
+                zfile.writestr("NUMBERED_PROMPTS.txt", numbered_prompts)
                 zfile.writestr("combined/NUMBERED_PROMPTS.md", numbered_prompts)
+                zfile.writestr("combined/NUMBERED_PROMPTS.txt", numbered_prompts)
 
                 # ── Per-part folders (only when multiple parts exist) ──────────
                 if len(story_parts) > 1:
@@ -4327,10 +4329,9 @@ def zip_cb(st: ProjectState, zip_base_name: str = "untitled", zip_part: str = "A
                             rows_part.append({"beat": b, "image": ordered, "sentence": beat_text})
                             part_names.append(f"{safe_label}/images/{ordered}")
                         _write_beat_maps(zfile, safe_label, rows_part)
-                        zfile.writestr(
-                            f"{safe_label}/NUMBERED_PROMPTS.md",
-                            _numbered_prompts_md(part_entries, part_names),
-                        )
+                        _part_prompts = _numbered_prompts_md(part_entries, part_names)
+                        zfile.writestr(f"{safe_label}/NUMBERED_PROMPTS.md", _part_prompts)
+                        zfile.writestr(f"{safe_label}/NUMBERED_PROMPTS.txt", _part_prompts)
 
                 # ── Shorts mode: add pages/ + cropped panels/ ─────────────────
                 if getattr(st, 'build_mode', 'Panel') == "Shorts" and image_entries:
@@ -4437,10 +4438,9 @@ def zip_cb(st: ProjectState, zip_base_name: str = "untitled", zip_part: str = "A
                             f"pages/page_{pg + 1:03d}.{os.path.splitext(p)[1].lstrip('.') or FAL_OUTPUT_EXT}"
                             for pg, _b, p in page_entries_ordered
                         ]
-                        zfile.writestr(
-                            "pages/NUMBERED_PROMPTS.md",
-                            _numbered_prompts_md(shorts_entries, shorts_names),
-                        )
+                        _pages_prompts = _numbered_prompts_md(shorts_entries, shorts_names)
+                        zfile.writestr("pages/NUMBERED_PROMPTS.md", _pages_prompts)
+                        zfile.writestr("pages/NUMBERED_PROMPTS.txt", _pages_prompts)
 
                         global_panel_num = 0
                         for pg_idx, b, p in sorted(page_entries_ordered):
@@ -4482,7 +4482,7 @@ def zip_cb(st: ProjectState, zip_base_name: str = "untitled", zip_part: str = "A
                         pass  # numpy/PIL failure is non-fatal
 
             result["path"] = zip_path
-            result["status"] = f"✅ Zipped {zip_filename} — {len(image_entries)} images"
+            result["status"] = f"✅ Zipped {zip_filename} — {len(image_entries)} images · {len(image_entries)} numbered prompts included"
         except Exception as exc:
             try:
                 # The fallback archive must still contain a human-readable,
@@ -4526,7 +4526,7 @@ def zip_cb(st: ProjectState, zip_base_name: str = "untitled", zip_part: str = "A
                 with _zf.ZipFile(zip_path, "w", allowZip64=True) as _fallback_zip:
                     for _root, _dirs, _files in os.walk(st.project_dir):
                         for _fn in _files:
-                            if _fn.upper() == "NUMBERED_PROMPTS.MD":
+                            if _fn.upper() in {"NUMBERED_PROMPTS.MD", "NUMBERED_PROMPTS.TXT"}:
                                 continue
                             _full = os.path.join(_root, _fn)
                             _rel = os.path.relpath(_full, st.project_dir)
@@ -4540,6 +4540,7 @@ def zip_cb(st: ProjectState, zip_base_name: str = "untitled", zip_part: str = "A
                                 ),
                             )
                     _fallback_zip.writestr("NUMBERED_PROMPTS.md", _fallback_prompts)
+                    _fallback_zip.writestr("NUMBERED_PROMPTS.txt", _fallback_prompts)
                 result["path"] = zip_path
                 result["status"] = f"⚠️ Zipped (fallback order): {exc}"
             except Exception as exc2:
