@@ -2314,9 +2314,11 @@ def _sb_zip(story_name: str, sb: Optional[Dict] = None) -> Tuple[Optional[str], 
             "beat_page_map.txt",
             "\n".join(txt_rows) if txt_rows else "(no beats)",
         )
-        zf.writestr("NUMBERED_PROMPTS.md", "\n".join(prompt_rows))
+        numbered_prompts = "\n".join(prompt_rows)
+        zf.writestr("NUMBERED_PROMPTS.md", numbered_prompts)
+        zf.writestr("NUMBERED_PROMPTS.txt", numbered_prompts)
 
-    return zp, f"✅ {len(page_entries)} pages + {panel_idx} panel crops zipped."
+    return zp, f"✅ {len(page_entries)} pages + {panel_idx} panel crops zipped · {len(page_entries)} numbered prompts included."
 
 
 _NONHUMAN_KEYWORDS = frozenset([
