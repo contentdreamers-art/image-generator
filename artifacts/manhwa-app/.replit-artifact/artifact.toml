@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Manhwa Generator"
+version = "1.0.0"
+id = "artifacts/manhwa-app"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = ["/"]
+localPort = 5000
+
+[services.development]
+run = "cd /home/runner/workspace/manhwa && python app.py"
+
+[services.production.build]
+args = ["sh", "-c", "rm -rf /home/runner/workspace/manhwa/projects/"]
+
+[services.production.run]
+args = ["sh", "-c", "cd /home/runner/workspace/manhwa && python app.py"]
+
+[services.env]
+PORT = "5000"
+BASE_PATH = "/"

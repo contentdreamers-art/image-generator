@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pipeline Comparison</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; padding: 32px 24px; }
+  h1 { text-align: center; font-size: 20px; color: #fff; margin-bottom: 8px; letter-spacing: 0.5px; }
+  .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 32px; }
+
+  .legend { display: flex; gap: 20px; justify-content: center; margin-bottom: 28px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #ccc; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+  .grid { display: grid; grid-template-columns: 1fr 48px 1fr; gap: 0; max-width: 900px; margin: 0 auto; }
+
+  .col-head { text-align: center; font-weight: 700; font-size: 15px; padding: 10px 12px; border-radius: 8px 8px 0 0; margin-bottom: 4px; }
+  .col-head.ep1 { background: #1a3a5c; color: #7eb8f7; }
+  .col-head.ep2 { background: #1a3a2a; color: #7ef7a0; }
+  .col-mid-head { display: flex; align-items: flex-end; padding-bottom: 6px; justify-content: center; }
+
+  .step-row { display: contents; }
+
+  .step { border-radius: 8px; padding: 11px 14px; font-size: 13px; line-height: 1.45; position: relative; margin-bottom: 6px; border: 1.5px solid transparent; }
+  .step .label { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; opacity: 0.65; }
+  .step .detail { color: #bbb; font-size: 12px; margin-top: 4px; }
+
+  .same     { background: #1e2a3a; border-color: #4a7fa5; }
+  .same .label { color: #7eb8f7; }
+  .same-alt { background: #1e2a3a; border-color: #e8a020; }
+  .same-alt .label { color: #e8a020; }
+  .ep1-only { background: #1a2a4a; border-color: #3a6abf; }
+  .ep1-only .label { color: #7eb8f7; }
+  .ep2-only { background: #1a3a28; border-color: #2e8f55; }
+  .ep2-only .label { color: #7ef7a0; }
+  .missing  { background: #2a1e1e; border-color: #7f3a3a; opacity: 0.7; }
+  .missing .label { color: #e07070; }
+
+  .connector { display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+  .connector svg { opacity: 0.35; }
+
+  .bridge { display: flex; align-items: center; justify-content: center; font-size: 11px; color: #888; padding: 4px 0; }
+  .bridge-line { flex: 1; height: 1px; background: #333; }
+  .bridge-label { padding: 0 8px; white-space: nowrap; }
+  .bridge-same { color: #4a7fa5; }
+  .bridge-diff { color: #e8a020; }
+  .bridge-missing { color: #7f3a3a; }
+
+  .gap-row { height: 14px; }
+
+  .mid-icon { font-size: 20px; text-align: center; }
+
+  .arrow-down { text-align: center; color: #444; font-size: 18px; line-height: 1; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<h1>Episode 1 vs Episode 2 — Pipeline Comparison</h1>
+<p class="subtitle">What each episode goes through when you run it</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#4a7fa5"></div> Same step, same behaviour</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e8a020"></div> Same step, different behaviour</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3a6abf"></div> Episode 1 only</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2e8f55"></div> Episode 2 only</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#7f3a3a"></div> Missing / skipped</div>
+</div>
+
+<div class="grid">
+
+  <!-- HEADERS -->
+  <div class="col-head ep1">📖 Episode 1 — Build Story</div>
+  <div class="col-mid-head"><span style="color:#555;font-size:11px;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg)">bridge</span></div>
+  <div class="col-head ep2">➕ Episode 2 — Continue Story</div>
+
+  <!-- STEP 1: Split beats -->
+  <div class="step same">
+    <div class="label">✅ Same</div>
+    <strong>1. Split beats</strong>
+    <div class="detail">split_beats(story) — same function, same sentence splitter</div>
+  </div>
+  <div class="bridge"><div class="bridge-line"></div><div class="bridge-label bridge-same">identical</div><div class="bridge-line"></div></div>
+  <div class="step same">
+    <div class="label">✅ Same</div>
+    <strong>1. Split beats</strong>
+    <div class="detail">split_beats(new_text) — appended to existing beats list</div>
+  </div>
+
+  <!-- arrows -->
+  <div class="arrow-down">↓</div><div></div><div class="arrow-down">↓</div>
+
+  <!-- STEP 2: Story bible -->
+  <div class="step ep1-only">
+    <div class="label">🔵 Ep1 behaviour</div>
+    <strong>2. Story Bible</strong>
+    <div class="detail">Full story → Claude extracts ALL characters, locations, items.<br>
+    Overwrites st.characters / st.locations from scratch.</div>
+  </div>
+  <div class="bridge"><div class="bridge-line"></div><div class="bridge-label bridge-diff">different</div><div class="bridge-line"></div></div>
+  <div class="step ep2-only">
+    <div class="label">🟢 Ep2 behaviour</div>
+    <strong>2. Story Bible (full combined)</strong>
+    <div class="detail">Full Ep1 + Ep2 story → Claude sees everything.<br>
+    Only ADDS new chars/locs — never overwrites existing Ep1 data.</div>
+  </div>
+
+  <div class="arrow-down">↓</div><div></div><div class="arrow-down">↓</div>
+
+  <!-- STEP 3: Age timeline -->
+  <div class="step ep1-only">
+    <div class="label">🔵 Ep1 only</div>
+    <strong>3. Age Timeline</strong>
+    <div class="detail">Scans first 80 beats for age changes.<br>Builds character_age_phases for appearance tracking.</div>
+  </div>
+  <div class="bridge"><div class="bridge-line"></div><div class="bridge-label bridge-missing">skipped</div><div class="bridge-line"></div></div>
+  <div class="step missing">
+    <div class="label">❌ Not run</div>
+    <strong>3. Age Timeline</strong>
+    <div class="detail">Not re-run. Ep1 age phases are reused as-is.<br>Gap: if characters age in Ep2, appearance won't update.</div>
+  </div>
+
+  <div class="arrow-down">↓</div><div></div><div class="arrow-down">↓</div>
+
+  <!-- STEP 4: Batch planning -->
+  <div class="step same-alt">
+    <div class="label">⚠️ Different behaviour</div>
+    <strong>4. Beat Planning</strong>
+    <div class="detail">
+      Batches of 20, run in <strong>parallel</strong><br>
+      prior_location = <code>""</code> for every batch<br>
+      → Location doesn't chain between batches
+    </div>
+  </div>
+  <div class="bridge"><div class="bridge-line"></div><div class="bridge-label bridge-diff">improved in Ep2</div><div class="bridge-line"></div></div>
+  <div class="step same-alt">
+    <div class="label">⚠️ Different behaviour</div>
+    <strong>4. Beat Planning</strong>
+    <div class="detail">
+      Batches of 20, run <strong>sequentially</strong><br>
+      prior_location chains from batch → batch<br>
+      → Better location continuity than Ep1
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div><div></div><div class="arrow-down">↓</div>
+
+  <!-- STEP 5: character planner context -->
+  <div class="step same">
+    <div class="label">✅ Same</div>
+    <strong>5. Planner Context</strong>
+    <div class="detail">available_characters with full dna_prompt (150 chars)<br>
+    available_locations with bible_prompt<br>
+    Protagonist name in system prompt</div>
+  </div>
+  <div class="bridge"><div class="bridge-line"></div><div class="bridge-label bridge-same">identical</div><div class="bridge-line"></div></div>
+  <div class="step same">
+    <div class="label">✅ Same</div>
+    <strong>5. Planner Context</strong>
+    <div class="detail">available_characters with full dna_prompt (150 chars)<br>
+    available_locations with bible_prompt<br>
+    Protagonist name in system prompt</div>
+  </div>
+
+  <div class="arrow-down">↓</div><div></div><div class="arrow-down">↓</div>
+
+  <!-- STEP 6: compose -->
+  <div class="step same">
+    <div class="label">✅ Same</div>
+    <strong>6. Compose Prompt</strong>
+    <div class="detail">Wilson format: focal · era · char DNA · action · env · lighting<br>
+    Pronoun detection for protagonist (I/me/he/she/I'd/I've…)<br>
+    Environment-shot detection for nature/weather beats</div>
+  </div>
+  <div class="bridge"><div class="bridge-line"></div><div class="bridge-label bridge-same">identical</div><div class="bridge-line"></div></div>
+  <div class="step same">
+    <div class="label">✅ Same</div>
+    <strong>6. Compose Prompt</strong>
+    <div class="detail">Wilson format: focal · era · char DNA · action · env · lighting<br>
+    Pronoun detection for protagonist (I/me/he/she/I'd/I've…)<br>
+    Environment-shot detection for nature/weather beats</div>
+  </div>
+
+  <div class="arrow-down">↓</div><div></div><div class="arrow-down">↓</div>
+
+  <!-- STEP 7: ref images -->
+  <div class="step ep1-only">
+    <div class="label">🔵 Ep1 only</div>
+    <strong>7. Ref Image Generation</strong>
+    <div class="detail">Generates character + location reference images<br>
+    used as IP-Adapter anchors during image generation.</div>
+  </div>
+  <div class="bridge"><div class="bridge-line"></div><div class="bridge-label bridge-missing">not re-run</div><div class="bridge-line"></div></div>
+  <div class="step missing">
+    <div class="label">❌ Not run</div>
+    <strong>7. Ref Image Generation</strong>
+    <div class="detail">Uses Ep1 ref images for all characters/locations.<br>
+    New Ep2-only entities won't have ref images until manually generated.</div>
+  </div>
+
+  <div class="arrow-down">↓</div><div></div><div class="arrow-down">↓</div>
+
+  <!-- STEP 8: save -->
+  <div class="step same">
+    <div class="label">✅ Same</div>
+    <strong>8. Save + Cloud Sync</strong>
+    <div class="detail">_save_project_json(st) → cloud upload</div>
+  </div>
+  <div class="bridge"><div class="bridge-line"></div><div class="bridge-label bridge-same">identical</div><div class="bridge-line"></div></div>
+  <div class="step same">
+    <div class="label">✅ Same</div>
+    <strong>8. Save + Cloud Sync</strong>
+    <div class="detail">_save_project_json(st) → cloud upload</div>
+  </div>
+
+</div>
+
+<div style="max-width:900px;margin:32px auto 0;padding:16px 20px;background:#1a1a2e;border-radius:10px;border:1px solid #333;">
+  <div style="font-size:13px;font-weight:700;color:#e8a020;margin-bottom:10px;">⚠️ Known Gaps in Episode 2</div>
+  <div style="font-size:12px;color:#bbb;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div>
+      <strong style="color:#e07070">Age Timeline not updated</strong><br>
+      If characters age or change appearance in Ep2, the phase tracker won't know. Fix: run Re-plan Part after manually adding phases in the Entity Editor.
+    </div>
+    <div>
+      <strong style="color:#e07070">New entity ref images missing</strong><br>
+      If Ep2 introduces a new character or location, they won't have a ref image (IP-Adapter anchor). Fix: go to Entity Editor → select new entity → regenerate ref.
+    </div>
+    <div>
+      <strong style="color:#4a7fa5">Stale beat plans (fixed by Re-plan)</strong><br>
+      Plans computed before our fixes have bad action text + empty characters. Hit 🔄 Re-plan Part to clear and recompute cleanly.
+    </div>
+    <div>
+      <strong style="color:#4a7fa5">Ep1 batch planning also parallel</strong><br>
+      Ep1's parallel batching means location doesn't chain between Ep1 batches either — only Ep2 benefits from sequential chaining so far.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

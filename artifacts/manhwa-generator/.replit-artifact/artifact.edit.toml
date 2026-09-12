@@ -1,0 +1,12 @@
+kind = "web"
+previewPath = "/"
+title = "Manhwa Generator"
+version = "1.0.0"
+
+[[services]]
+localPort = 5000
+name = "Manhwa Generator"
+paths = ["/"]
+
+[services.development]
+run = "cd manhwa && python app.py"
