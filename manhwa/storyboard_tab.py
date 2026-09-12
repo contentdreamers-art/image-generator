@@ -973,7 +973,7 @@ def _parse_story(story: str, page_size: int, world_ctx: str = "") -> Tuple[Dict,
 def _generate_chars_dna(char_names: List[str], story: str, existing_dna: Dict) -> Dict[str, str]:
     """Ask Claude to write a concise visual appearance description for every character
     that doesn't already have a DNA entry. Returns {name: description} for new ones."""
-    if not char_names or not os.environ.get("ANTHROPIC_API_KEY"):
+    if not char_names or not _rp.has_text_provider("anthropic"):
         return {}
     need = [n for n in char_names if n and not existing_dna.get(n)]
     if not need:
@@ -1023,7 +1023,7 @@ def _auto_assign_classes(
     Only assigns characters not already manually assigned.
     Returns {char_name: class_name} for new assignments.
     """
-    if not char_names or not os.environ.get("ANTHROPIC_API_KEY"):
+    if not char_names or not _rp.has_text_provider("anthropic"):
         return {}
     need = [n for n in char_names if n and not existing_classes.get(n)]
     if not need:
