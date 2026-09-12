@@ -817,7 +817,7 @@ def _validate_shorts_beats_with_claude(story: str, expanded_beats: List[str]) ->
     'Does this visual match the sentence? If not, fix it so it does.'
     """
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
-    if not api_key or not expanded_beats:
+    if not _rp.has_text_provider("anthropic") or not expanded_beats:
         return expanded_beats
 
     import re as _re
@@ -869,17 +869,22 @@ def _validate_shorts_beats_with_claude(story: str, expanded_beats: List[str]) ->
     ).replace("{n_beats}", str(n_beats))
 
     try:
-        import requests as _rq
-        r = _rq.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": CLAUDE_MODEL, "max_tokens": 6000, "temperature": 0, "system": system,
-                  "messages": [{"role": "user", "content": user}]},
-            timeout=(15, 150),
-        )
-        r.raise_for_status()
-        parts = [p.get("text", "") for p in r.json().get("content", []) if p.get("type") == "text"]
-        raw_text = "".join(parts).strip()
+        if _rp.is_deepseek_mode():
+            raw_text, _status = _rp.call_text(system, user, max_tokens=6000, temperature=0)
+            if not raw_text:
+                return expanded_beats
+        else:
+            import requests as _rq
+            r = _rq.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json={"model": CLAUDE_MODEL, "max_tokens": 6000, "temperature": 0, "system": system,
+                      "messages": [{"role": "user", "content": user}]},
+                timeout=(15, 150),
+            )
+            r.raise_for_status()
+            parts = [p.get("text", "") for p in r.json().get("content", []) if p.get("type") == "text"]
+            raw_text = "".join(parts).strip()
         raw_text = re.sub(r"^```[a-z]*\n?", "", raw_text, flags=re.IGNORECASE)
         raw_text = re.sub(r"\n?```$", "", raw_text)
         validated = json.loads(raw_text.strip())
@@ -895,7 +900,7 @@ def _expand_shorts_beats_with_claude(story: str, raw_beats: List[str], target_be
     """Expand sparse story beats into visual micro-beats for Shorts mode.
     Each beat = one image = 1-3 seconds on screen. Targets ~50 beats for a ~1-minute short."""
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
-    if not api_key:
+    if not _rp.has_text_provider("anthropic"):
         return raw_beats
 
     beats_text = "\n".join(f"{i+1}. {b}" for i, b in enumerate(raw_beats))
@@ -1007,17 +1012,22 @@ def _expand_shorts_beats_with_claude(story: str, raw_beats: List[str], target_be
     )
 
     try:
-        import requests as _rq
-        r = _rq.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": CLAUDE_MODEL, "max_tokens": 6000, "temperature": 0, "system": system,
-                  "messages": [{"role": "user", "content": user}]},
-            timeout=(15, 120),
-        )
-        r.raise_for_status()
-        parts = [p.get("text", "") for p in r.json().get("content", []) if p.get("type") == "text"]
-        raw_text = "".join(parts).strip()
+        if _rp.is_deepseek_mode():
+            raw_text, _status = _rp.call_text(system, user, max_tokens=6000, temperature=0)
+            if not raw_text:
+                return raw_beats
+        else:
+            import requests as _rq
+            r = _rq.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json={"model": CLAUDE_MODEL, "max_tokens": 6000, "temperature": 0, "system": system,
+                      "messages": [{"role": "user", "content": user}]},
+                timeout=(15, 120),
+            )
+            r.raise_for_status()
+            parts = [p.get("text", "") for p in r.json().get("content", []) if p.get("type") == "text"]
+            raw_text = "".join(parts).strip()
         # Strip markdown fences if model added them anyway
         raw_text = re.sub(r"^```[a-z]*\n?", "", raw_text, flags=re.IGNORECASE)
         raw_text = re.sub(r"\n?```$", "", raw_text)
