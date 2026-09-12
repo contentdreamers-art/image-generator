@@ -20,6 +20,7 @@ _GEN_RUNNING = threading.Event()  # guards against two Auto-Run batches at once
 _SB_SAVE_LOCK = threading.Lock()  # serialises storyboard.json writes during parallel generation
 
 import gradio as gr
+import reasoning_provider as _rp
 
 # ─────────────────────────────────────────────────────────────────────────────
 N_SLOTS      = 5
@@ -893,7 +894,7 @@ def _extract_char_names(story: str) -> List[str]:
 
 def _extract_beat_chars(story: str, beats: List[str], known_chars: List[str]) -> Dict[str, List[str]]:
     """Ask Claude which characters appear in each beat. Returns {beat_1idx_str: [names]}."""
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    if not _rp.has_text_provider("anthropic"):
         return {}
     try:
         from build import _call_claude_batch_beat_plans, ProjectState as _PS, \
@@ -972,7 +973,7 @@ def _parse_story(story: str, page_size: int, world_ctx: str = "") -> Tuple[Dict,
 def _generate_chars_dna(char_names: List[str], story: str, existing_dna: Dict) -> Dict[str, str]:
     """Ask Claude to write a concise visual appearance description for every character
     that doesn't already have a DNA entry. Returns {name: description} for new ones."""
-    if not char_names or not os.environ.get("ANTHROPIC_API_KEY"):
+    if not char_names or not _rp.has_text_provider("anthropic"):
         return {}
     need = [n for n in char_names if n and not existing_dna.get(n)]
     if not need:
@@ -1022,7 +1023,7 @@ def _auto_assign_classes(
     Only assigns characters not already manually assigned.
     Returns {char_name: class_name} for new assignments.
     """
-    if not char_names or not os.environ.get("ANTHROPIC_API_KEY"):
+    if not char_names or not _rp.has_text_provider("anthropic"):
         return {}
     need = [n for n in char_names if n and not existing_classes.get(n)]
     if not need:
@@ -1205,7 +1206,7 @@ def _assign_recipes_and_colors(sb: Dict) -> None:
     # recipe/color direction attached to the wrong beats is worse than none.
     sb.pop("beat_recipes", None)
     sb.pop("beat_colors", None)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    if not _rp.has_text_provider("anthropic"):
         return
     from build import _call_claude_json
     import character_library as _cl_sr

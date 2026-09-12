@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 import uvicorn
 import gradio as gr
+import reasoning_provider as _rp
 
 STARTUP_LOG = []
 _IMPORTED = {}
@@ -194,6 +195,41 @@ input[type=checkbox]:checked { accent-color: #f97316 !important; }
     color: #c0c0e0 !important;
     background: #1c1c2e !important;
 }
+
+/* ===== GLOBAL REASONING ENGINE SWITCH ===== */
+#reasoning-mode-panel {
+    border: 2px solid #f97316 !important;
+    border-radius: 14px !important;
+    padding: 14px 16px !important;
+    margin: 4px 0 18px 0 !important;
+    background: linear-gradient(135deg, #17171f, #211711) !important;
+    box-shadow: 0 4px 22px rgba(249,115,22,0.18) !important;
+}
+#reasoning-mode-toggle .wrap {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px !important;
+}
+#reasoning-mode-toggle .wrap label {
+    flex: 1 !important;
+    min-height: 58px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.5px !important;
+    border: 2px solid #35355a !important;
+    border-radius: 12px !important;
+    background: #101018 !important;
+    cursor: pointer !important;
+}
+#reasoning-mode-toggle .wrap label:has(input[type=radio]:checked) {
+    border-color: #f97316 !important;
+    background: linear-gradient(135deg, #f97316, #ea580c) !important;
+    color: white !important;
+    box-shadow: 0 3px 18px rgba(249,115,22,0.35) !important;
+}
 """
 
 
@@ -250,6 +286,32 @@ MANHWA_THEME = gr.themes.Base(
 _log('app.py import start')
 with gr.Blocks(title='Manhwa Tool') as demo:
     gr.Markdown('# Manhwa Tool')
+
+    with gr.Group(elem_id="reasoning-mode-panel"):
+        gr.Markdown("## ⚙️ AI REASONING ENGINE — controls the whole app")
+        _mode_choices = [
+            "⚡ DEEPSEEK V4.1 FLASH — DEFAULT",
+            "🧠 NORMAL — CLAUDE + GPT",
+        ]
+        _mode_default = _mode_choices[0] if _rp.is_deepseek_mode() else _mode_choices[1]
+        reasoning_mode_radio = gr.Radio(
+            choices=_mode_choices,
+            value=_mode_default,
+            label="Reasoning Mode",
+            elem_id="reasoning-mode-toggle",
+        )
+        reasoning_mode_status = gr.Markdown(_rp.mode_status_markdown())
+
+        def _change_reasoning_mode(choice):
+            _rp.set_mode("deepseek" if "DEEPSEEK" in str(choice).upper() else "normal")
+            return _rp.mode_status_markdown()
+
+        reasoning_mode_radio.change(
+            _change_reasoning_mode,
+            inputs=[reasoning_mode_radio],
+            outputs=[reasoning_mode_status],
+        )
+
     with gr.Accordion('Startup / Import Diagnostics', open=False):
         startup_diag = gr.Textbox(label='Diagnostics', lines=20, value='\n'.join(STARTUP_LOG), interactive=False)
         diag_refresh_btn = gr.Button("Refresh Diagnostics", size="sm")

@@ -13,6 +13,7 @@ Usage:
 
 import os
 import numpy as np
+import reasoning_provider as _rp
 from typing import List, Tuple, Optional
 
 _DIR   = os.path.join(os.path.dirname(__file__), "character_library")
@@ -236,14 +237,23 @@ def rerank(query: str, candidates: List[Tuple[str, float]], top_k: int = 20) -> 
     )
 
     try:
-        import anthropic
-        client  = anthropic.Anthropic()
-        msg     = client.messages.create(
-            model      = "claude-haiku-4-5",
-            max_tokens = 400,
-            messages   = [{"role": "user", "content": prompt}],
-        )
-        text = (msg.content[0].text or "").strip()
+        if _rp.is_deepseek_mode():
+            text, _status = _rp.call_text(
+                "You rank visual reference candidates for a Korean manhwa project. Return only the requested JSON array.",
+                prompt,
+                max_tokens=400,
+                temperature=0,
+            )
+            text = (text or "").strip()
+        else:
+            import anthropic
+            client  = anthropic.Anthropic()
+            msg     = client.messages.create(
+                model      = "claude-haiku-4-5",
+                max_tokens = 400,
+                messages   = [{"role": "user", "content": prompt}],
+            )
+            text = (msg.content[0].text or "").strip()
         m    = _re.search(r'\[.*?\]', text, _re.DOTALL)
         if m:
             ranked_ids      = json.loads(m.group())

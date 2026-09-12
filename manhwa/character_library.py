@@ -37,6 +37,7 @@ import re
 import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+import reasoning_provider as _rp
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 _MODULE_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -1130,13 +1131,19 @@ def analyze_image_with_ai(
     model: str = _DEFAULT_ANALYSIS_MODEL,
 ) -> Dict[str, Any]:
     """
-    Use Claude Vision to extract structured metadata from a reference image.
+    Use the active reasoning provider to extract structured metadata from a reference image.
     Defaults to claude-3-5-sonnet for rich trope + expression detection.
     Pass model="claude-3-5-haiku-20241022" for faster/cheaper bulk runs.
 
     Returns a dict with gender, age, archetype, manhwa tropes, tags, etc.
     Raises on API failure — callers should handle exceptions gracefully.
     """
+    if _rp.is_deepseek_mode():
+        result, status = _rp.call_vision_json(pil_img, _ANALYSIS_PROMPT, max_tokens=1536)
+        if isinstance(result, dict):
+            return result
+        raise RuntimeError(status)
+
     import anthropic
 
     from PIL import Image as _PILImage

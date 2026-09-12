@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Any, Tuple, Optional
 
 import cloud_storage as _cloud
+import reasoning_provider as _rp
 
 import gradio as gr
 from PIL import Image
@@ -24,8 +25,16 @@ except Exception:
 
 
 def _rewrite_flagged_prompt(prompt: str, reason: str) -> Optional[str]:
-    """Ask Claude to strip/rephrase whatever triggered FAL's content checker.
-    Returns the rewritten prompt string, or None if Claude can't be reached."""
+    """Rewrite a rejected image prompt using the active reasoning provider."""
+    if _rp.is_deepseek_mode():
+        text, _status = _rp.call_text(
+            "Rewrite the image-generation prompt while preserving its visual intent and details. Return only the final prompt.",
+            {"reason": reason or "content filter", "prompt": prompt},
+            max_tokens=4000,
+            temperature=0,
+        )
+        return text.strip() if text else None
+
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
     if not api_key:
         return None
@@ -657,6 +666,12 @@ def _extract_json_object(text: str) -> Optional[Dict[str, Any]]:
 
 
 def _call_claude_json(system: str, user_payload: Dict[str, Any], max_tokens: int = 4000, model: Optional[str] = None, _log=None) -> Optional[Dict[str, Any]]:
+    if _rp.is_deepseek_mode():
+        result, status = _rp.call_json(system, user_payload, max_tokens=max_tokens, temperature=0)
+        if result is None and _log:
+            _log(f"DeepSeek V4.1 Flash: {status}")
+        return result
+
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
     if not api_key:
         if _log:
@@ -802,7 +817,7 @@ def _validate_shorts_beats_with_claude(story: str, expanded_beats: List[str]) ->
     'Does this visual match the sentence? If not, fix it so it does.'
     """
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
-    if not api_key or not expanded_beats:
+    if not _rp.has_text_provider("anthropic") or not expanded_beats:
         return expanded_beats
 
     import re as _re
@@ -854,17 +869,22 @@ def _validate_shorts_beats_with_claude(story: str, expanded_beats: List[str]) ->
     ).replace("{n_beats}", str(n_beats))
 
     try:
-        import requests as _rq
-        r = _rq.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": CLAUDE_MODEL, "max_tokens": 6000, "temperature": 0, "system": system,
-                  "messages": [{"role": "user", "content": user}]},
-            timeout=(15, 150),
-        )
-        r.raise_for_status()
-        parts = [p.get("text", "") for p in r.json().get("content", []) if p.get("type") == "text"]
-        raw_text = "".join(parts).strip()
+        if _rp.is_deepseek_mode():
+            raw_text, _status = _rp.call_text(system, user, max_tokens=6000, temperature=0)
+            if not raw_text:
+                return expanded_beats
+        else:
+            import requests as _rq
+            r = _rq.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json={"model": CLAUDE_MODEL, "max_tokens": 6000, "temperature": 0, "system": system,
+                      "messages": [{"role": "user", "content": user}]},
+                timeout=(15, 150),
+            )
+            r.raise_for_status()
+            parts = [p.get("text", "") for p in r.json().get("content", []) if p.get("type") == "text"]
+            raw_text = "".join(parts).strip()
         raw_text = re.sub(r"^```[a-z]*\n?", "", raw_text, flags=re.IGNORECASE)
         raw_text = re.sub(r"\n?```$", "", raw_text)
         validated = json.loads(raw_text.strip())
@@ -880,7 +900,7 @@ def _expand_shorts_beats_with_claude(story: str, raw_beats: List[str], target_be
     """Expand sparse story beats into visual micro-beats for Shorts mode.
     Each beat = one image = 1-3 seconds on screen. Targets ~50 beats for a ~1-minute short."""
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
-    if not api_key:
+    if not _rp.has_text_provider("anthropic"):
         return raw_beats
 
     beats_text = "\n".join(f"{i+1}. {b}" for i, b in enumerate(raw_beats))
@@ -992,17 +1012,22 @@ def _expand_shorts_beats_with_claude(story: str, raw_beats: List[str], target_be
     )
 
     try:
-        import requests as _rq
-        r = _rq.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": CLAUDE_MODEL, "max_tokens": 6000, "temperature": 0, "system": system,
-                  "messages": [{"role": "user", "content": user}]},
-            timeout=(15, 120),
-        )
-        r.raise_for_status()
-        parts = [p.get("text", "") for p in r.json().get("content", []) if p.get("type") == "text"]
-        raw_text = "".join(parts).strip()
+        if _rp.is_deepseek_mode():
+            raw_text, _status = _rp.call_text(system, user, max_tokens=6000, temperature=0)
+            if not raw_text:
+                return raw_beats
+        else:
+            import requests as _rq
+            r = _rq.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json={"model": CLAUDE_MODEL, "max_tokens": 6000, "temperature": 0, "system": system,
+                      "messages": [{"role": "user", "content": user}]},
+                timeout=(15, 120),
+            )
+            r.raise_for_status()
+            parts = [p.get("text", "") for p in r.json().get("content", []) if p.get("type") == "text"]
+            raw_text = "".join(parts).strip()
         # Strip markdown fences if model added them anyway
         raw_text = re.sub(r"^```[a-z]*\n?", "", raw_text, flags=re.IGNORECASE)
         raw_text = re.sub(r"\n?```$", "", raw_text)
@@ -2923,7 +2948,7 @@ def _compose_sonnet_prompt_fallback(st: ProjectState, beat_text: str, plan: Dict
 
 def _call_claude_batch_image_prompts(st: ProjectState, start_index: int, beats_batch: List[str]) -> Dict[int, Dict[str, Any]]:
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
-    if not api_key:
+    if not _rp.has_text_provider("anthropic"):
         return {}
     plans_payload = []
     for rel_i, beat_text in enumerate(beats_batch):
@@ -2999,7 +3024,7 @@ def _call_claude_batch_image_prompts(st: ProjectState, start_index: int, beats_b
             "prompt": clean_for_prompt(str(row.get("prompt") or "")),
             "negative": clean_for_prompt(str(row.get("negative") or DEFAULT_NEGATIVE)) or DEFAULT_NEGATIVE,
             "summary": clean_for_prompt(str(row.get("summary") or "")),
-            "source": "sonnet_batch",
+            "source": "deepseek_v4_1_flash" if _rp.is_deepseek_mode() else "sonnet_batch",
         }
     return out
 
@@ -3280,7 +3305,7 @@ def _call_claude_panel_page_prompt(page_idx: int, page_beats: List[str], st: "Pr
     prev_script: the GENERATED visual script of the previous page — used to make PANEL 1
                  a direct visual continuation of the previous page's last panel."""
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
-    if not api_key:
+    if not _rp.has_text_provider("anthropic"):
         header = "Korean manhwa webtoon art style, bold black ink outlines, hard-edged cel shading, vivid saturated palette, large luminous eyes. 9:16 vertical page, 10 panels, white gutters, left-right top-bottom reading, clean 2D Korean webtoon illustration not photorealistic. ALL figures and objects fully contained within their panel boundaries — no character or limb crosses a panel border."
         return header + "\n\n" + "\n".join(f"PANEL {i+1} [MS]: {b}" for i, b in enumerate(page_beats[:10]))
 
@@ -3537,6 +3562,11 @@ def _call_claude_panel_page_prompt(page_idx: int, page_beats: List[str], st: "Pr
         + hook_user_addon
     )
     try:
+        if _rp.is_deepseek_mode():
+            text, _status = _rp.call_text(system, user, max_tokens=2500, temperature=0)
+            if text:
+                return text.strip()
+            raise RuntimeError(_status)
         import requests as _rq
         r = _rq.post(
             "https://api.anthropic.com/v1/messages",
@@ -4575,8 +4605,8 @@ def _rewrite_location_prompts_with_openai(
             "bible_prompt": clean_for_prompt(str(sdata.get("bible_prompt") or "")),
             "ref_prompt": clean_for_prompt(str(sdata.get("ref_prompt") or "")),
         }
-    if not os.getenv("OPENAI_API_KEY"):
-        return clean_bible, clean_ref_base, clean_subs, "local (missing OPENAI_API_KEY)"
+    if not _rp.has_text_provider("openai"):
+        return clean_bible, clean_ref_base, clean_subs, "local (missing active reasoning API key)"
     system = (
         "You refine prompt text for a manhwa reference-image tool. Return ONLY valid JSON. "
         "Keep anime/manhwa 2d style and avoid photorealism. "
@@ -4622,14 +4652,14 @@ def _rewrite_location_prompts_with_openai(
             out_subs[sn] = {"bible_prompt": sb, "ref_prompt": sr}
     if not out_subs:
         out_subs = clean_subs
-    return out_bible, out_ref_base, out_subs, f"OpenAI {OPENAI_PROMPT_MODEL}"
+    return out_bible, out_ref_base, out_subs, _rp.active_model_label(f"OpenAI {OPENAI_PROMPT_MODEL}")
 
 
 def _rewrite_item_prompts_with_openai(item_name: str, kind: str, bible_prompt: str, ref_prompt: str) -> Tuple[str, str, str]:
     clean_bible = clean_for_prompt(bible_prompt)
     clean_ref = clean_for_prompt(ref_prompt)
-    if not os.getenv("OPENAI_API_KEY"):
-        return clean_bible, clean_ref, "local (missing OPENAI_API_KEY)"
+    if not _rp.has_text_provider("openai"):
+        return clean_bible, clean_ref, "local (missing active reasoning API key)"
     system = (
         "You refine prompt text for anime/manhwa reference-image generation. "
         "Return ONLY valid JSON. Keep 2d illustrated style and avoid photorealism."
@@ -4651,7 +4681,7 @@ def _rewrite_item_prompts_with_openai(item_name: str, kind: str, bible_prompt: s
         return clean_bible, clean_ref, f"local fallback ({OPENAI_PROMPT_MODEL} failed)"
     out_bible = clean_for_prompt(str(data.get("bible_prompt") or clean_bible)) or clean_bible
     out_ref = clean_for_prompt(str(data.get("ref_prompt") or clean_ref)) or clean_ref
-    return out_bible, out_ref, f"OpenAI {OPENAI_PROMPT_MODEL}"
+    return out_bible, out_ref, _rp.active_model_label(f"OpenAI {OPENAI_PROMPT_MODEL}")
 
 
 def _location_single_ref_prompt(location_name: str, location_data: Dict[str, Any]) -> str:
@@ -5491,6 +5521,9 @@ def build_tab1(state: gr.State, sync_token=None):
 
 
 def _call_openai_text_with_status(system: str, user_payload: Dict[str, Any], model: Optional[str] = None, max_output_tokens: int = 900) -> Tuple[Optional[str], str]:
+    if _rp.is_deepseek_mode():
+        return _rp.call_text(system, user_payload, max_tokens=max_output_tokens, temperature=0)
+
     api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
     chosen_model = model or OPENAI_PROMPT_MODEL
     if not api_key:
@@ -5739,7 +5772,7 @@ def compose_visual_prompt_cb(st: ProjectState, beat_value: str, scene_brief: str
         ],
     }
     composed = _call_openai_text(PROMPT_COMPOSER_SYSTEM, payload, model=OPENAI_PROMPT_MODEL, max_output_tokens=900)
-    source = f"OpenAI {OPENAI_PROMPT_MODEL}"
+    source = _rp.active_model_label(f"OpenAI {OPENAI_PROMPT_MODEL}")
     if not composed:
         composed = _compose_prompt_fallback(st, scene_text, selected_characters or [], selected_location or "None", selected_items or [], perspective, shot_notes, emotion_notes)
         source = "local fallback composer"
