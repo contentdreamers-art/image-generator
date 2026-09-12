@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Any, Tuple, Optional
 
 import cloud_storage as _cloud
+import reasoning_provider as _rp
 
 import gradio as gr
 from PIL import Image
@@ -657,6 +658,12 @@ def _extract_json_object(text: str) -> Optional[Dict[str, Any]]:
 
 
 def _call_claude_json(system: str, user_payload: Dict[str, Any], max_tokens: int = 4000, model: Optional[str] = None, _log=None) -> Optional[Dict[str, Any]]:
+    if _rp.is_deepseek_mode():
+        result, status = _rp.call_json(system, user_payload, max_tokens=max_tokens, temperature=0)
+        if result is None and _log:
+            _log(f"DeepSeek V4.1 Flash: {status}")
+        return result
+
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
     if not api_key:
         if _log:
@@ -5491,6 +5498,9 @@ def build_tab1(state: gr.State, sync_token=None):
 
 
 def _call_openai_text_with_status(system: str, user_payload: Dict[str, Any], model: Optional[str] = None, max_output_tokens: int = 900) -> Tuple[Optional[str], str]:
+    if _rp.is_deepseek_mode():
+        return _rp.call_text(system, user_payload, max_tokens=max_output_tokens, temperature=0)
+
     api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
     chosen_model = model or OPENAI_PROMPT_MODEL
     if not api_key:
