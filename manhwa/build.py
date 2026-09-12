@@ -25,8 +25,16 @@ except Exception:
 
 
 def _rewrite_flagged_prompt(prompt: str, reason: str) -> Optional[str]:
-    """Ask Claude to strip/rephrase whatever triggered FAL's content checker.
-    Returns the rewritten prompt string, or None if Claude can't be reached."""
+    """Rewrite a rejected image prompt using the active reasoning provider."""
+    if _rp.is_deepseek_mode():
+        text, _status = _rp.call_text(
+            "Rewrite the image-generation prompt while preserving its visual intent and details. Return only the final prompt.",
+            {"reason": reason or "content filter", "prompt": prompt},
+            max_tokens=4000,
+            temperature=0,
+        )
+        return text.strip() if text else None
+
     api_key = (os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY") or "").strip()
     if not api_key:
         return None
